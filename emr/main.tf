@@ -215,6 +215,31 @@ resource "aws_iam_role_policy" "ec2_secrets" {
   })
 }
 
+# Lets the backend call Amazon Bedrock (MedSarv AI chart assistant) using this role —
+# no access keys on the box. Nova Lite via the APAC inference profile in ap-south-1.
+data "aws_caller_identity" "current" {}
+
+resource "aws_iam_role_policy" "ec2_bedrock" {
+  name = "${var.project_name}-bedrock-invoke"
+  role = aws_iam_role.ec2.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid    = "InvokeApprovedModelsOnly"
+      Effect = "Allow"
+      Action = [
+        "bedrock:InvokeModel",
+        "bedrock:InvokeModelWithResponseStream",
+      ]
+      Resource = [
+        "arn:aws:bedrock:ap-south-1:${data.aws_caller_identity.current.account_id}:inference-profile/apac.amazon.nova-lite-v1:0",
+        "arn:aws:bedrock:*::foundation-model/amazon.nova-lite-v1:0",
+      ]
+    }]
+  })
+}
+
 resource "aws_iam_instance_profile" "ec2" {
   name = "${var.project_name}-ec2-profile"
   role = aws_iam_role.ec2.name
